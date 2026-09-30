@@ -36,7 +36,7 @@ struct ManagementView: View {
 
 private enum ManagementRuleKind {
     case ping, load
-    var title: String { self == .ping ? "Ping 任务" : "负载通知" }
+    var title: String { self == .ping ? NSLocalizedString("Ping 任务", comment: "") : NSLocalizedString("负载通知", comment: "") }
     var list: String { self == .ping ? "admin:getAllPingTasks" : "admin:getAllLoadNotifications" }
     var add: String { self == .ping ? "admin:addPingTask" : "admin:addLoadNotification" }
     var edit: String { self == .ping ? "admin:editPingTask" : "admin:editLoadNotification" }
@@ -53,7 +53,7 @@ private func managementText(_ value: JSON) -> String {
     switch value {
     case .string(let text): return text.isEmpty ? "—" : text
     case .number(let number): return number.formatted()
-    case .bool(let bool): return bool ? "是" : "否"
+    case .bool(let bool): return bool ? NSLocalizedString("是", comment: "") : NSLocalizedString("否", comment: "")
     default: return "—"
     }
 }
@@ -71,10 +71,10 @@ private func managementVerify(_ actual: JSON, fields: [String: JSON]) throws {
     for (key, value) in fields {
         if key == "clients" {
             guard Set(actual[key].array.map { $0.string }) == Set(value.array.map { $0.string }) else {
-                throw ManagementIssue(text: "服务器已接受请求，但节点选择回读不一致。请刷新核对，勿重复提交。")
+                throw ManagementIssue(text: NSLocalizedString("服务器已接受请求，但节点选择回读不一致。请刷新核对，勿重复提交。", comment: ""))
             }
         } else if actual[key] != value {
-            throw ManagementIssue(text: "服务器已接受请求，但字段 \(key) 回读不一致。请刷新核对，勿重复提交。")
+            throw ManagementIssue(text: String(localized: "服务器已接受请求，但字段 \(key) 回读不一致。请刷新核对，勿重复提交。"))
         }
     }
 }
@@ -194,7 +194,7 @@ private struct ManagementRules: View {
         do {
             _ = try await api.rpc(kind.delete, params: .object(["id": .array([row["id"]])]))
             rows = try await api.rpc(kind.list).array
-            guard !rows.contains(where: { $0["id"] == row["id"] }) else { throw ManagementIssue(text: "删除回读失败，配置仍存在。") }
+            guard !rows.contains(where: { $0["id"] == row["id"] }) else { throw ManagementIssue(text: NSLocalizedString("删除回读失败，配置仍存在。", comment: "")) }
             loaded = true
         } catch { self.error = error.localizedDescription }
     }
@@ -260,25 +260,25 @@ private struct ManagementRuleForm: View {
             }
         }
         .disabled(busy)
-        .navigationTitle(original == nil ? "新增\(kind.title)" : "编辑\(kind.title)")
+        .navigationTitle(original == nil ? String(localized: "新增\(kind.title)") : String(localized: "编辑\(kind.title)"))
         .toolbar { ToolbarItem(placement: .cancellationAction) { Button("关闭") { dismiss() }.disabled(busy) } }
         .interactiveDismissDisabled(busy)
     }
 
     @MainActor private func save() async {
         error = nil
-        guard let period = Int(interval), period > 0 else { error = "间隔必须为正整数。"; return }
+        guard let period = Int(interval), period > 0 else { error = NSLocalizedString("间隔必须为正整数。", comment: ""); return }
         var fields: [String: JSON] = ["name": .string(name), "clients": managementClients(selected), "interval": .number(Double(period))]
         if kind == .ping {
             guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, !target.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, !type.isEmpty, defaultOn || !selected.isEmpty else {
-                error = "填写名称和目标，并选择节点或开启新节点默认监测。"; return
+                error = NSLocalizedString("填写名称和目标，并选择节点或开启新节点默认监测。", comment: ""); return
             }
             fields["target"] = .string(target); fields["type"] = .string(type); fields["default_on"] = .bool(defaultOn)
         } else {
             guard !selected.isEmpty, !metric.isEmpty, period <= 240,
                   let thresholdValue = Double(threshold), thresholdValue.isFinite, thresholdValue > 0,
                   let ratioValue = Double(ratio), ratioValue.isFinite, ratioValue > 0, ratioValue <= 1 else {
-                error = "请选择节点、填写指标及正阈值；比例应大于 0 且不超过 1，窗口不超过 240 分钟。"; return
+                error = NSLocalizedString("请选择节点、填写指标及正阈值；比例应大于 0 且不超过 1，窗口不超过 240 分钟。", comment: ""); return
             }
             // Backend stores these fields as float32 with two-decimal precision.
             fields["metric"] = .string(metric); fields["threshold"] = .number(thresholdValue); fields["ratio"] = .number(ratioValue)
@@ -289,11 +289,11 @@ private struct ManagementRuleForm: View {
             let id: JSON
             if let original {
                 let fresh = try await api.rpc(kind.list).array
-                guard let current = fresh.first(where: { $0["id"] == original["id"] }) else { throw ManagementIssue(text: "此配置已不存在，请关闭并刷新。") }
+                guard let current = fresh.first(where: { $0["id"] == original["id"] }) else { throw ManagementIssue(text: NSLocalizedString("此配置已不存在，请关闭并刷新。", comment: "")) }
                 // Preserve all unedited fields (weight, last_notified, future fields),
                 // and refuse to overwrite a concurrent edit of an exposed field.
                 for key in fields.keys where current[key] != original[key] {
-                    throw ManagementIssue(text: "配置已被其他人修改（\(key)），请关闭并重新编辑。")
+                    throw ManagementIssue(text: String(localized: "配置已被其他人修改（\(key)），请关闭并重新编辑。"))
                 }
                 var merged = current.object
                 for (key, value) in fields { merged[key] = value }
@@ -305,7 +305,7 @@ private struct ManagementRuleForm: View {
             }
             submitted = true
             let readback = try await api.rpc(kind.list).array
-            guard let actual = readback.first(where: { $0["id"] == id }) else { throw ManagementIssue(text: "请求已提交，但无法找到回读配置。") }
+            guard let actual = readback.first(where: { $0["id"] == id }) else { throw ManagementIssue(text: NSLocalizedString("请求已提交，但无法找到回读配置。", comment: "")) }
             try managementVerify(actual, fields: fields)
             dismiss()
         } catch { self.error = error.localizedDescription }
@@ -331,7 +331,7 @@ private struct ManagementOffline: View {
                     } label: {
                         VStack(alignment: .leading, spacing: 5) {
                             Text(managementNodeName(uuid, nodes: nodes)).foregroundStyle(.primary)
-                            Text(row.map { "\(managementText($0["enable"])) · 宽限期 \(managementText($0["grace_period"])) 秒" } ?? "— · 尚未配置")
+                            Text(row.map { String(localized: "\(managementText($0["enable"])) · 宽限期 \(managementText($0["grace_period"])) 秒") } ?? NSLocalizedString("— · 尚未配置", comment: ""))
                                 .font(.caption).foregroundStyle(.secondary)
                         }
                     }.disabled(busy || uuid.isEmpty)
@@ -388,7 +388,7 @@ private struct ManagementOfflineForm: View {
         .interactiveDismissDisabled(busy)
     }
     @MainActor private func save() async {
-        guard let seconds = Int(grace), seconds > 0 else { error = "宽限期必须是正整数。"; return }
+        guard let seconds = Int(grace), seconds > 0 else { error = NSLocalizedString("宽限期必须是正整数。", comment: ""); return }
         busy = true; error = nil
         defer { busy = false }
         do {
@@ -397,16 +397,16 @@ private struct ManagementOfflineForm: View {
             let current = list.first { $0["client"].string == uuid }
             if let current {
                 for key in ["enable", "grace_period"] where current[key] != original[key] {
-                    throw ManagementIssue(text: "此节点配置已更改，请关闭并重新编辑。")
+                    throw ManagementIssue(text: NSLocalizedString("此节点配置已更改，请关闭并重新编辑。", comment: ""))
                 }
-            } else if original.object["enable"] != nil { throw ManagementIssue(text: "此配置已不存在，请刷新。") }
+            } else if original.object["enable"] != nil { throw ManagementIssue(text: NSLocalizedString("此配置已不存在，请刷新。", comment: "")) }
             var payload = current?.object ?? ["client": .string(uuid)]
             payload["enable"] = .bool(enabled); payload["grace_period"] = .number(Double(seconds))
             // This RPC takes a bare array, NOT an object envelope.
             _ = try await api.rpc("admin:editOfflineNotification", params: .array([.object(payload)]))
             submitted = true
             let refreshed = try await api.rpc("admin:listOfflineNotifications").array
-            guard let actual = refreshed.first(where: { $0["client"].string == uuid }) else { throw ManagementIssue(text: "请求已提交，但未找到回读配置。") }
+            guard let actual = refreshed.first(where: { $0["client"].string == uuid }) else { throw ManagementIssue(text: NSLocalizedString("请求已提交，但未找到回读配置。", comment: "")) }
             try managementVerify(actual, fields: ["enable": .bool(enabled), "grace_period": .number(Double(seconds))])
             dismiss()
         } catch { self.error = error.localizedDescription }
@@ -485,12 +485,12 @@ private struct ManagementCommands: View {
             let response = try await api.rpc("admin:exec", params: .object(["command": .string(command), "clients": managementClients(selected)]))
             let id = response["task_id"].string
             executionID = id
-            delivery = "即时派发：\(response["clients"].array.count) · 排队：\(response["queued_clients"].array.count)"
-            guard !id.isEmpty else { throw ManagementIssue(text: "服务器未返回任务 ID，请刷新任务列表核对，不要重复执行。") }
+            delivery = String(localized: "即时派发：\(response["clients"].array.count) · 排队：\(response["queued_clients"].array.count)")
+            guard !id.isEmpty else { throw ManagementIssue(text: NSLocalizedString("服务器未返回任务 ID，请刷新任务列表核对，不要重复执行。", comment: "")) }
             let actual = try await api.rpc("admin:getTaskById", params: .object(["task_id": .string(id)]))
             try managementVerify(actual, fields: ["command": .string(command), "clients": managementClients(selected)])
             tasks = try await api.rpc("admin:getTasks").array
-        } catch { self.error = "\(error.localizedDescription)\n执行状态可能不确定，请刷新任务列表核对；不会自动重试。" }
+        } catch { self.error = String(localized: "\(error.localizedDescription)\n执行状态可能不确定，请刷新任务列表核对；不会自动重试。") }
     }
 }
 
@@ -581,7 +581,7 @@ private struct ManagementLogs: View {
         do {
             // Backend binds limit/page as strings, not JSON numbers.
             let result = try await api.rpc("admin:getLogs", params: .object(["limit": .string(String(limit)), "page": .string(String(targetPage)), "msg_type": .string(filter)]))
-            guard case .number(let count) = result["total"], count.isFinite, count >= 0 else { throw ManagementIssue(text: "服务器未返回有效日志总数。") }
+            guard case .number(let count) = result["total"], count.isFinite, count >= 0 else { throw ManagementIssue(text: NSLocalizedString("服务器未返回有效日志总数。", comment: "")) }
             rows = result["logs"].array; total = Int(count); page = targetPage
         } catch { self.error = error.localizedDescription }
     }

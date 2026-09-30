@@ -88,6 +88,46 @@ final class SmokeTests: XCTestCase {
         }
     }
 
+    func testAllSupportedLanguages() {
+        let cases: [(String, String, String, String, String, String, String, String, String)] = [
+            ("zh-Hans", "总览", "面板", "添加面板", "取消", "外观", "跟随系统", "关于", "验证并保存"),
+            ("zh-Hant", "總覽", "面板", "新增面板", "取消", "外觀", "跟隨系統", "關於", "驗證並儲存"),
+            ("en", "Overview", "Panels", "Add Panel", "Cancel", "Appearance", "System", "About", "Verify & Save"),
+            ("ja", "概要", "パネル", "パネルを追加", "キャンセル", "外観", "システムに追従", "情報", "検証して保存"),
+            ("ko", "개요", "패널", "패널 추가", "취소", "모양", "시스템 설정", "정보", "검증 및 저장")
+        ]
+        for (language, overview, panels, addPanel, cancel, appearance, system, about, save) in cases {
+            let app = XCUIApplication()
+            app.launchArguments += ["-panels", "[]", "-selectedPanel", "",
+                                    "-AppleLanguages", "(\(language))", "-AppleLocale", language,
+                                    "-appAppearance", "light"]
+            app.launch()
+            XCTAssertTrue(app.navigationBars[overview].waitForExistence(timeout: 15), language)
+            capture(app, "Localization-\(language)-overview")
+            app.tabBars.buttons[panels].tap()
+            XCTAssertTrue(app.buttons["addPanel"].waitForExistence(timeout: 5), language)
+            app.buttons["addPanel"].tap()
+            XCTAssertTrue(app.navigationBars[addPanel].waitForExistence(timeout: 5), language)
+            XCTAssertTrue(app.buttons[save].exists, language)
+            XCTAssertFalse(app.buttons[save].isEnabled, language)
+            capture(app, "Localization-\(language)-panel-form")
+            app.buttons[cancel].tap()
+            app.buttons[appearance].tap()
+            XCTAssertTrue(app.segmentedControls["appAppearance"].waitForExistence(timeout: 5), language)
+            XCTAssertTrue(app.segmentedControls["appAppearance"].buttons[system].exists, language)
+            capture(app, "Localization-\(language)-appearance")
+            app.buttons["customAccent"].tap()
+            XCTAssertTrue(app.textFields["accentHexInput"].waitForExistence(timeout: 5), language)
+            capture(app, "Localization-\(language)-accent")
+            app.buttons[cancel].tap()
+            app.navigationBars.buttons.firstMatch.tap()
+            app.buttons[about].tap()
+            XCTAssertTrue(app.navigationBars[about].waitForExistence(timeout: 5), language)
+            capture(app, "Localization-\(language)-about")
+            app.terminate()
+        }
+    }
+
     func testNodeExpansionDismissesSearchKeyboard() {
         let app = fixtureApp()
         let search = app.textFields["dashboardSearch"]

@@ -4,7 +4,7 @@ import UIKit
 enum AppearanceMode: String, CaseIterable, Identifiable {
     case system, light, dark
     var id: String { rawValue }
-    var title: String { switch self { case .system: return "跟随系统"; case .light: return "浅色"; case .dark: return "深色" } }
+    var title: String { switch self { case .system: return NSLocalizedString("跟随系统", comment: ""); case .light: return NSLocalizedString("浅色", comment: ""); case .dark: return NSLocalizedString("深色", comment: "") } }
     var scheme: ColorScheme? { switch self { case .system: return nil; case .light: return .light; case .dark: return .dark } }
 }
 
@@ -43,7 +43,7 @@ extension UIApplication: AppIconClient {
             return true
         }
         guard app.supportsAlternateIcons else {
-            error = "系统暂不允许恢复默认图标，下次打开 App 时会重试。"
+            error = NSLocalizedString("系统暂不允许恢复默认图标，下次打开 App 时会重试。", comment: "")
             return false
         }
         busy = true
@@ -52,14 +52,14 @@ extension UIApplication: AppIconClient {
         do {
             try await app.restorePrimaryIcon()
             guard app.alternateIconName == nil else {
-                error = "系统尚未恢复默认图标，下次打开 App 时会重试。"
+                error = NSLocalizedString("系统尚未恢复默认图标，下次打开 App 时会重试。", comment: "")
                 return false
             }
             // Retire the preference only after UIKit confirms the primary icon.
             defaults.removeObject(forKey: "iconAppearance")
             return true
         } catch {
-            self.error = "恢复默认图标失败：\(error.localizedDescription) 下次打开 App 时会重试。"
+            self.error = String(localized: "恢复默认图标失败：\(error.localizedDescription) 下次打开 App 时会重试。")
             return false
         }
     }

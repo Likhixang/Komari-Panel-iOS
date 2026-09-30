@@ -3,7 +3,7 @@ import Foundation
 enum BackendKind: String, Codable, CaseIterable, Identifiable {
     case komari, nezha, nezhaV0, dstatus
     var id: String { rawValue }
-    var title: String { switch self { case .komari: return "Komari"; case .nezha: return "哪吒 V1"; case .nezhaV0: return "哪吒 V0"; case .dstatus: return "DStatus" } }
+    var title: String { switch self { case .komari: return "Komari"; case .nezha: return NSLocalizedString("哪吒 V1", comment: ""); case .nezhaV0: return NSLocalizedString("哪吒 V0", comment: ""); case .dstatus: return "DStatus" } }
 }
 struct BackendSnapshot: Sendable { let nodes: [JSON]; let statuses: JSON }
 struct MonitorAPI: Sendable {

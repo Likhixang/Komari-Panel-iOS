@@ -46,17 +46,17 @@ enum KomariAPIError: Error, LocalizedError, Equatable {
 
     var errorDescription: String? {
         switch self {
-        case .invalidURL: return "请输入完整面板 URL，不允许包含账号密码、查询参数或片段。"
-        case .insecureURL: return "默认要求 HTTPS。仅在受信任网络明确开启不安全 HTTP。"
-        case .invalidAPIKey: return "API key 为空或包含不支持的字符。"
-        case .invalidMethod: return "RPC 方法无效。"
-        case .invalidParams: return "RPC 参数必须为对象或数组。"
-        case .transport: return "无法安全连接服务器，请检查地址、网络与证书。"
-        case .timedOut: return "服务器响应超时。"
-        case .httpStatus(let code): return "服务器返回 HTTP \(code)."
-        case .invalidResponse: return "服务器返回了无效响应。"
-        case .mismatchedID: return "RPC 响应与请求不匹配。"
-        case .rpc(let code): return "RPC 请求失败（错误码 \(code))."
+        case .invalidURL: return NSLocalizedString("请输入完整面板 URL，不允许包含账号密码、查询参数或片段。", comment: "")
+        case .insecureURL: return NSLocalizedString("默认要求 HTTPS。仅在受信任网络明确开启不安全 HTTP。", comment: "")
+        case .invalidAPIKey: return NSLocalizedString("API key 为空或包含不支持的字符。", comment: "")
+        case .invalidMethod: return NSLocalizedString("RPC 方法无效。", comment: "")
+        case .invalidParams: return NSLocalizedString("RPC 参数必须为对象或数组。", comment: "")
+        case .transport: return NSLocalizedString("无法安全连接服务器，请检查地址、网络与证书。", comment: "")
+        case .timedOut: return NSLocalizedString("服务器响应超时。", comment: "")
+        case .httpStatus(let code): return String(format: NSLocalizedString("服务器返回 HTTP %lld.", comment: "HTTP status code"), Int64(code))
+        case .invalidResponse: return NSLocalizedString("服务器返回了无效响应。", comment: "")
+        case .mismatchedID: return NSLocalizedString("RPC 响应与请求不匹配。", comment: "")
+        case .rpc(let code): return String(format: NSLocalizedString("RPC 请求失败（错误码 %lld).", comment: "RPC error code"), Int64(code))
         }
     }
 }
@@ -313,5 +313,5 @@ enum Keychain {
 
 struct KeychainError: Error, LocalizedError {
     let status: OSStatus
-    var errorDescription: String? { "安全凭据存储失败（错误码 \(status))." }
+    var errorDescription: String? { String(localized: "安全凭据存储失败（错误码 \(Int(status))).") }
 }

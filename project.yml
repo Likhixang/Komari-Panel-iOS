@@ -8,8 +8,8 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.0"
-    MARKETING_VERSION: "1.0.0"
-    CURRENT_PROJECT_VERSION: "14"
+    MARKETING_VERSION: "1.0.1"
+    CURRENT_PROJECT_VERSION: "15"
     CODE_SIGNING_ALLOWED: NO
     TARGETED_DEVICE_FAMILY: "1,2"
 targets:
@@ -37,7 +37,7 @@ targets:
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
         INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
-        INFOPLIST_KEY_NSLocalNetworkUsageDescription: 连接局域网内的 Komari 面板
+        INFOPLIST_KEY_NSLocalNetworkUsageDescription: 连接局域网内的 Komari、哪吒或 DStatus 监控面板
         INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsArbitraryLoads: YES
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         # Compatibility registrations for restoring icons selected by older builds.

@@ -44,16 +44,16 @@ struct CompatibleGlassContainer<Content: View>: View {
     }
 }
 struct EmptyState: View {
-    let title: String
+    let title: LocalizedStringKey
     let symbol: String
     let description: String
-    init(_ title: String, systemImage: String, description: Text? = nil) {
+    init(_ title: LocalizedStringKey, systemImage: String, description: Text? = nil) {
         self.title = title; symbol = systemImage; self.description = ""
         self.detail = description
     }
     private let detail: Text?
     var body: some View {
-        VStack(spacing: 12) { Image(systemName: symbol).font(.system(size: 40)).foregroundColor(.secondary); Text(LocalizedStringKey(title)).font(.title3.bold()); if let detail { detail.font(.subheadline).foregroundColor(.secondary).multilineTextAlignment(.center) } }.padding(28).frame(maxWidth: .infinity)
+        VStack(spacing: 12) { Image(systemName: symbol).font(.system(size: 40)).foregroundColor(.secondary); Text(title).font(.title3.bold()); if let detail { detail.font(.subheadline).foregroundColor(.secondary).multilineTextAlignment(.center) } }.padding(28).frame(maxWidth: .infinity)
     }
 }
 func hexRGB(_ raw: String) -> UInt32? {
@@ -163,7 +163,7 @@ struct AboutView: View {
                 NavigationLink("图标与数据许可") {
                     ScrollView {
                         Text((Bundle.main.url(forResource: "ThirdPartyNotices", withExtension: "txt")
-                            .flatMap { try? String(contentsOf: $0, encoding: .utf8) }) ?? "许可文件未能读取")
+                            .flatMap { try? String(contentsOf: $0, encoding: .utf8) }) ?? NSLocalizedString("许可文件未能读取", comment: ""))
                             .font(.footnote).textSelection(.enabled).padding()
                     }.navigationTitle("图标与数据许可")
                 }

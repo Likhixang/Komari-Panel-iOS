@@ -4,11 +4,6 @@ on:
     branches: ['**']
     tags: ['v*']
   workflow_dispatch:
-    inputs:
-      verify_ui:
-        description: Run node navigation tests and capture bilingual README screenshots
-        type: boolean
-        default: false
 permissions:
   contents: read
 jobs:
@@ -30,6 +25,8 @@ jobs:
           xcodebuild -version
           brew install xcodegen
           xcodegen generate
+      - name: Check all localization resources and source coverage
+        run: python3 scripts/check-localizations.py
       - name: Run host Swift cancellation regressions (no simulator)
         run: python3 scripts/test-panel-store-host.py --build-dir "$RUNNER_TEMP/panel-store-host"
       - name: Verify system icon source variants
@@ -51,48 +48,6 @@ jobs:
                       assert raw[25] == 6, f'{name}: Dark must have RGBA transparency'
               print(name, 'Any/Dark source manifest and PNG format verified')
           PY
-      - name: Verify node transitions and capture README screenshots
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.verify_ui }}
-        run: |
-          set -euo pipefail
-          DEVICE=$(python3 - <<'PY'
-          import json, subprocess
-          devices=json.loads(subprocess.check_output(['xcrun','simctl','list','devices','available','-j']))['devices']
-          phones=[d for runtime, ds in devices.items() if 'iOS' in runtime for d in ds if 'iPhone' in d['name']]
-          assert phones, 'No iPhone simulator available'
-          print(phones[0]['udid'])
-          PY
-          )
-          xcrun simctl boot "$DEVICE"
-          xcrun simctl bootstatus "$DEVICE" -b
-          xcrun simctl status_bar "$DEVICE" override --time '9:41' --dataNetwork wifi --wifiMode active --wifiBars 3 --batteryState charged --batteryLevel 100
-          xcrun simctl io "$DEVICE" recordVideo --codec=h264 build/node-navigation.mp4 &
-          RECORDER=$!
-          trap 'kill -INT "$RECORDER"; wait "$RECORDER" || true' EXIT
-          xcodebuild test -project KomariPanel.xcodeproj -scheme KomariPanel -configuration Debug -destination "platform=iOS Simulator,id=$DEVICE" -parallel-testing-enabled NO -resultBundlePath build/NodeNavigation.xcresult \
-            -only-testing:KomariPanelTests \
-            -only-testing:KomariPanelUITests/SmokeTests/testNodeExpansionAndScrollRestoration \
-            -only-testing:KomariPanelUITests/SmokeTests/testNodeExpansionWithReducedMotion \
-            -only-testing:KomariPanelUITests/SmokeTests/testNodeNativeInteractiveReturn \
-            -only-testing:KomariPanelUITests/SmokeTests/testNodeExpansionDismissesSearchKeyboard \
-            -only-testing:KomariPanelUITests/SmokeTests/testReadmeScreenshots \
-            CODE_SIGNING_ALLOWED=NO | tee ui-tests.log
-      - name: Export simulator evidence
-        if: ${{ always() && github.event_name == 'workflow_dispatch' && inputs.verify_ui }}
-        run: |
-          if [ -d build/NodeNavigation.xcresult ]; then
-            xcrun xcresulttool export attachments --path build/NodeNavigation.xcresult --output-path build/ui-attachments
-            xcrun xcresulttool get test-results summary --path build/NodeNavigation.xcresult > build/ui-summary.json
-          fi
-      - uses: actions/upload-artifact@v4
-        if: ${{ always() && github.event_name == 'workflow_dispatch' && inputs.verify_ui }}
-        with:
-          name: node-navigation-evidence
-          path: |
-            build/ui-attachments
-            build/ui-summary.json
-            build/node-navigation.mp4
-            ui-tests.log
       - name: Build unsigned device archive and IPA
         run: |
           set -euo pipefail
@@ -129,12 +84,13 @@ jobs:
               for key in ['CFBundleIcons','CFBundleIcons~ipad']:
                   assert info[key]['CFBundlePrimaryIcon']['CFBundleIconName'] == 'AppIcon'
                   assert set(info[key]['CFBundleAlternateIcons']) == {'AppIconLight','AppIconDark'}
-              assert info['CFBundleShortVersionString']=='1.0.0'
-              assert info['CFBundleVersion']=='14'
+              assert info['CFBundleShortVersionString']=='1.0.1'
+              assert info['CFBundleVersion']=='15'
               assert set(info.get('CFBundleLocalizations', [])) == {'zh-Hans', 'zh-Hant', 'en', 'ja', 'ko'}
               assert 'Payload/KomariPanel.app/KomariPanel' in z.namelist()
               print(info['CFBundleIdentifier'],info['MinimumOSVersion'],info['CFBundleShortVersionString'])
           PY
+          python3 scripts/check-localizations.py --ipa build/Monitor-Panel-iOS-unsigned.ipa
           shasum -a 256 build/Monitor-Panel-iOS-unsigned.ipa > build/SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:

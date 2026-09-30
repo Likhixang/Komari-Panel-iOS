@@ -45,7 +45,7 @@ struct StatusBars: View {
 }
 
 struct ResourceGauge: View {
-    let title: String
+    let title: LocalizedStringKey
     let icon: String
     let iconColor: Color
     let value: String
@@ -59,7 +59,7 @@ struct ResourceGauge: View {
                 Image(systemName: icon)
                     .font(.system(size: 9, weight: .semibold))
                     .foregroundColor(iconColor)
-                Text(LocalizedStringKey(title))
+                Text(title)
                     .font(.system(size: 11, weight: .medium))
                     .foregroundColor(.secondary)
             }
@@ -278,7 +278,7 @@ struct NodeSpecificationHeroCard: View {
                 .frame(height: 6)
 
                 HStack {
-                    Text(bytes(trafficUsed) + " / " + (metrics["traffic_unlimited"].bool ? "不限额" : bytes(node["traffic_limit"])))
+                    Text(bytes(trafficUsed) + " / " + (metrics["traffic_unlimited"].bool ? NSLocalizedString("不限额", comment: "") : bytes(node["traffic_limit"])))
                         .font(.system(size: 10))
                         .monospacedDigit()
                         .foregroundColor(.secondary)
@@ -396,7 +396,7 @@ struct NodeSpecificationHeroCard: View {
                     HStack(spacing: 4) {
                         Text("延迟").font(.system(size: 11, weight: .medium)).foregroundColor(.secondary)
                         let summary = pingSummary
-                        Text(summary.averageLatency.map { String(format: "%.0f ms", $0) } ?? (summary.allTimedOut ? "超时" : "—"))
+                        Text(summary.averageLatency.map { String(format: "%.0f ms", $0) } ?? (summary.allTimedOut ? NSLocalizedString("超时", comment: "") : "—"))
                             .font(.system(size: 12, weight: .bold))
                             .foregroundColor(summary.allTimedOut ? .red : summary.averageLatency.map { $0 > 150 ? Color.red : Color.primary } ?? .secondary)
                     }
@@ -537,7 +537,7 @@ struct RichNodeCard: View {
                     icon: "arrow.up.arrow.down",
                     iconColor: .blue,
                     value: bytes(trafficUsed),
-                    detail: metrics["traffic_unlimited"].bool ? "不限额" : bytes(trafficUsed) + " / " + bytes(node["traffic_limit"]),
+                    detail: metrics["traffic_unlimited"].bool ? NSLocalizedString("不限额", comment: "") : bytes(trafficUsed) + " / " + bytes(node["traffic_limit"]),
                     fraction: ratio(trafficUsed, node["traffic_limit"]),
                     tint: .blue
                 )
@@ -598,7 +598,7 @@ struct RichNodeCard: View {
                             .font(.system(size: 10))
                             .foregroundColor(.secondary)
                         let summary = pingSummary
-                        Text(summary.averageLatency.map { String(format: "%.0f ms", $0) } ?? (summary.allTimedOut ? "超时" : "—"))
+                        Text(summary.averageLatency.map { String(format: "%.0f ms", $0) } ?? (summary.allTimedOut ? NSLocalizedString("超时", comment: "") : "—"))
                             .font(.system(size: 11, weight: .semibold))
                             .foregroundColor(summary.allTimedOut ? .red : summary.averageLatency.map { $0 > 150 ? Color.red : Color.primary } ?? .secondary)
                     }
