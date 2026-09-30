@@ -1,0 +1,24 @@
+{
+  "freebsd": {
+    "title": "FreeBSD",
+    "hex": "AB2B28",
+    "source": "https://www.freebsdfoundation.org/about/project/"
+  },
+  "netbsd": {
+    "title": "NetBSD",
+    "hex": "FF6600",
+    "source": "https://www.netbsd.org",
+    "guidelines": "https://www.netbsd.org/about/disclaimer.html"
+  },
+  "openbsd": {
+    "title": "OpenBSD",
+    "hex": "F2CA30",
+    "source": "https://en.wikipedia.org/wiki/OpenBSD"
+  },
+  "suse": {
+    "title": "SUSE",
+    "hex": "0C322C",
+    "source": "https://brand.suse.com",
+    "guidelines": "https://brand.suse.com"
+  }
+}

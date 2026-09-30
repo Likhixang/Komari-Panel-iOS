@@ -1,0 +1,8 @@
+build/
+*.xcodeproj/
+*.xcresult/
+*.log
+.DS_Store
+.env
+screenshots/
+!docs/screenshots/

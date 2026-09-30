@@ -1,0 +1,71 @@
+name: KomariPanel
+options:
+  bundleIdPrefix: com.khixang
+  deploymentTarget:
+    iOS: "16.0"
+  developmentLanguage: "zh-Hans"
+  knownRegions: ["zh-Hans", "zh-Hant", "en", "ja", "ko", "Base"]
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "14"
+    CODE_SIGNING_ALLOWED: NO
+    TARGETED_DEVICE_FAMILY: "1,2"
+targets:
+  KomariPanel:
+    type: application
+    platform: iOS
+    sources:
+      - path: KomariPanel
+    info:
+      path: build/Info.plist
+      properties:
+        CFBundleLocalizations:
+          - zh-Hans
+          - zh-Hant
+          - en
+          - ja
+          - ko
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.khixang.panel
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Monitor Panel
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
+        INFOPLIST_KEY_NSLocalNetworkUsageDescription: 连接局域网内的 Komari 面板
+        INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsArbitraryLoads: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        # Compatibility registrations for restoring icons selected by older builds.
+        # Both sets now mirror AppIcon Any/Dark; there is no in-app icon choice.
+        ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES: "AppIconLight AppIconDark"
+        CFBundleDevelopmentRegion: "zh-Hans"
+  KomariPanelTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [KomariPanelTests]
+    dependencies:
+      - target: KomariPanel
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+  KomariPanelUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [KomariPanelUITests]
+    dependencies:
+      - target: KomariPanel
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  KomariPanel:
+    build:
+      targets:
+        KomariPanel: all
+    test:
+      targets: [KomariPanelTests, KomariPanelUITests]

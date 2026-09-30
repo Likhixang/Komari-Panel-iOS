@@ -1,0 +1,2 @@
+CFBundleDisplayName = "Monitor Panel";
+NSLocalNetworkUsageDescription = "로컬 네트워크의 Komari, Nezha 또는 DStatus 모니터링 패널에 연결합니다";

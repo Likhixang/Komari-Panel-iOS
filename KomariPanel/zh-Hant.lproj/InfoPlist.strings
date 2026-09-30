@@ -1,0 +1,2 @@
+CFBundleDisplayName = "Monitor Panel";
+NSLocalNetworkUsageDescription = "連線區域網路內的 Komari、哪吒或 DStatus 監控面板";

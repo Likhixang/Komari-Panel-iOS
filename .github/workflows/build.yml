@@ -1,0 +1,151 @@
+name: Build IPA
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      verify_ui:
+        description: Run node navigation tests and capture bilingual README screenshots
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode 26 and install XcodeGen
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import glob, subprocess
+          apps = sorted(glob.glob('/Applications/Xcode_26*.app'))
+          if not apps:
+              raise SystemExit('Xcode 26 missing')
+          subprocess.run(['sudo','xcode-select','-s',apps[-1]+'/Contents/Developer'],check=True)
+          PY
+          xcodebuild -version
+          brew install xcodegen
+          xcodegen generate
+      - name: Run host Swift cancellation regressions (no simulator)
+        run: python3 scripts/test-panel-store-host.py --build-dir "$RUNNER_TEMP/panel-store-host"
+      - name: Verify system icon source variants
+        run: |
+          python3 - <<'PY'
+          import json, pathlib, struct
+          base = pathlib.Path('KomariPanel/Assets.xcassets')
+          for name in ['AppIcon', 'AppIconLight', 'AppIconDark']:
+              folder = base / (name + '.appiconset')
+              images = json.loads((folder / 'Contents.json').read_text())['images']
+              light = [x for x in images if not x.get('appearances')]
+              dark = [x for x in images if {'appearance': 'luminosity', 'value': 'dark'} in x.get('appearances', [])]
+              assert len(light) == len(dark) == 1, name
+              for variant in light + dark:
+                  raw = (folder / variant['filename']).read_bytes()
+                  assert raw[:8] == b'\x89PNG\r\n\x1a\n'
+                  assert struct.unpack('>II', raw[16:24]) == (1024, 1024)
+                  if variant in dark:
+                      assert raw[25] == 6, f'{name}: Dark must have RGBA transparency'
+              print(name, 'Any/Dark source manifest and PNG format verified')
+          PY
+      - name: Verify node transitions and capture README screenshots
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.verify_ui }}
+        run: |
+          set -euo pipefail
+          DEVICE=$(python3 - <<'PY'
+          import json, subprocess
+          devices=json.loads(subprocess.check_output(['xcrun','simctl','list','devices','available','-j']))['devices']
+          phones=[d for runtime, ds in devices.items() if 'iOS' in runtime for d in ds if 'iPhone' in d['name']]
+          assert phones, 'No iPhone simulator available'
+          print(phones[0]['udid'])
+          PY
+          )
+          xcrun simctl boot "$DEVICE"
+          xcrun simctl bootstatus "$DEVICE" -b
+          xcrun simctl status_bar "$DEVICE" override --time '9:41' --dataNetwork wifi --wifiMode active --wifiBars 3 --batteryState charged --batteryLevel 100
+          xcrun simctl io "$DEVICE" recordVideo --codec=h264 build/node-navigation.mp4 &
+          RECORDER=$!
+          trap 'kill -INT "$RECORDER"; wait "$RECORDER" || true' EXIT
+          xcodebuild test -project KomariPanel.xcodeproj -scheme KomariPanel -configuration Debug -destination "platform=iOS Simulator,id=$DEVICE" -parallel-testing-enabled NO -resultBundlePath build/NodeNavigation.xcresult \
+            -only-testing:KomariPanelTests \
+            -only-testing:KomariPanelUITests/SmokeTests/testNodeExpansionAndScrollRestoration \
+            -only-testing:KomariPanelUITests/SmokeTests/testNodeExpansionWithReducedMotion \
+            -only-testing:KomariPanelUITests/SmokeTests/testNodeNativeInteractiveReturn \
+            -only-testing:KomariPanelUITests/SmokeTests/testNodeExpansionDismissesSearchKeyboard \
+            -only-testing:KomariPanelUITests/SmokeTests/testReadmeScreenshots \
+            CODE_SIGNING_ALLOWED=NO | tee ui-tests.log
+      - name: Export simulator evidence
+        if: ${{ always() && github.event_name == 'workflow_dispatch' && inputs.verify_ui }}
+        run: |
+          if [ -d build/NodeNavigation.xcresult ]; then
+            xcrun xcresulttool export attachments --path build/NodeNavigation.xcresult --output-path build/ui-attachments
+            xcrun xcresulttool get test-results summary --path build/NodeNavigation.xcresult > build/ui-summary.json
+          fi
+      - uses: actions/upload-artifact@v4
+        if: ${{ always() && github.event_name == 'workflow_dispatch' && inputs.verify_ui }}
+        with:
+          name: node-navigation-evidence
+          path: |
+            build/ui-attachments
+            build/ui-summary.json
+            build/node-navigation.mp4
+            ui-tests.log
+      - name: Build unsigned device archive and IPA
+        run: |
+          set -euo pipefail
+          xcodebuild archive -project KomariPanel.xcodeproj -scheme KomariPanel -configuration Release -destination 'generic/platform=iOS' -archivePath build/KomariPanel.xcarchive CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY='' | tee archive.log
+          xcrun --sdk iphoneos assetutil --info build/KomariPanel.xcarchive/Products/Applications/KomariPanel.app/Assets.car > build/icon-assets.json
+          python3 - <<'PY'
+          import json
+          assets=json.load(open('build/icon-assets.json'))
+          icons=[x for x in assets if 'AppIcon' in x.get('Name','')]
+          print(json.dumps(icons,indent=2))
+          assert icons, 'Compiled AppIcon is missing'
+          for name in ['AppIcon', 'AppIconLight', 'AppIconDark']:
+              for idiom in ['phone', 'pad']:
+                  variants = [x for x in icons if x.get('Name') == name and x.get('Idiom') == idiom and x.get('AssetType') == 'Icon Image']
+                  light = [x for x in variants if not x.get('Appearance')]
+                  dark = [x for x in variants if x.get('Appearance') == 'UIAppearanceDark']
+                  assert light and dark, f'{name} Any/Dark variants missing for {idiom}'
+                  assert all(x.get('Opaque') is False for x in dark), f'{name}: Dark alpha lost for {idiom}'
+                  assert all(x.get('Opaque') is True for x in light), f'{name}: Any must remain opaque for {idiom}'
+                  assert {x['SHA1Digest'] for x in light}.isdisjoint({x['SHA1Digest'] for x in dark}), f'{name} variants identical for {idiom}'
+          PY
+          mkdir -p build/ipa/Payload
+          cp -R build/KomariPanel.xcarchive/Products/Applications/KomariPanel.app build/ipa/Payload/
+          (cd build/ipa && zip -qry ../Monitor-Panel-iOS-unsigned.ipa Payload)
+          python3 - <<'PY'
+          import zipfile,plistlib
+          path='build/Monitor-Panel-iOS-unsigned.ipa'
+          with zipfile.ZipFile(path) as z:
+              assert z.testzip() is None
+              info=plistlib.loads(z.read('Payload/KomariPanel.app/Info.plist'))
+              assert info['MinimumOSVersion']=='16.0'
+              assert info['CFBundleIdentifier']=='com.khixang.panel'
+              assert info['CFBundleDisplayName']=='Monitor Panel'
+              for key in ['CFBundleIcons','CFBundleIcons~ipad']:
+                  assert info[key]['CFBundlePrimaryIcon']['CFBundleIconName'] == 'AppIcon'
+                  assert set(info[key]['CFBundleAlternateIcons']) == {'AppIconLight','AppIconDark'}
+              assert info['CFBundleShortVersionString']=='1.0.0'
+              assert info['CFBundleVersion']=='14'
+              assert set(info.get('CFBundleLocalizations', [])) == {'zh-Hans', 'zh-Hant', 'en', 'ja', 'ko'}
+              assert 'Payload/KomariPanel.app/KomariPanel' in z.namelist()
+              print(info['CFBundleIdentifier'],info['MinimumOSVersion'],info['CFBundleShortVersionString'])
+          PY
+          shasum -a 256 build/Monitor-Panel-iOS-unsigned.ipa > build/SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Monitor-Panel-iOS-unsigned
+          path: |
+            build/Monitor-Panel-iOS-unsigned.ipa
+            build/SHA256SUMS.txt
+            build/icon-assets.json
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: build-logs
+          path: archive.log
